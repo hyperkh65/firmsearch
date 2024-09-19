@@ -9,10 +9,14 @@ import re
 
 # SSL/TLS 설정을 위한 어댑터 클래스
 class TLSAdapter(HTTPAdapter):
-    def init_poolmanager(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         context = ssl.create_default_context()
         context.set_ciphers('DEFAULT:@SECLEVEL=1')
-        kwargs['ssl_context'] = context
+        self.ssl_context = context
+
+    def init_poolmanager(self, *args, **kwargs):
+        kwargs['ssl_context'] = self.ssl_context
         return super().init_poolmanager(*args, **kwargs)
 
 # 세션 생성 및 어댑터 설정
