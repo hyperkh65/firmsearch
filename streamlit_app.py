@@ -60,15 +60,18 @@ def get_company_info(kiscode):
         response.raise_for_status()
         soup = BeautifulSoup(response.content, 'html.parser')
         
+        def clean_text(text):
+            return text.get_text(strip=True).replace('\n', '').replace(' ', '') if text else '-'
+
         company_info = {
-            '대표자': soup.find('p', string='대표자').find_next_sibling('strong').get_text(strip=True) if soup.find('p', string='대표자') else '-',
-            '본사주소': soup.find('p', string='본사주소').find_next_sibling('strong').get_text(strip=True) if soup.find('p', string='본사주소') else '-',
-            '그룹명': soup.find('p', string='그룹명').find_next_sibling('strong').get_text(strip=True) if soup.find('p', string='그룹명') else '-',
-            '사업자번호': soup.find('p', string='사업자번호').find_next_sibling('strong').get_text(strip=True) if soup.find('p', string='사업자번호') else '-',
-            '기업형태': soup.find('p', string='기업형태').find_next_sibling('strong').get_text(strip=True) if soup.find('p', string='기업형태') else '-',
-            '산업': soup.find('p', string='산업').find_next_sibling('strong').get_text(strip=True) if soup.find('p', string='산업') else '-',
-            '설립일자': soup.find('p', string='설립일자').find_next_sibling('strong').get_text(strip=True) if soup.find('p', string='설립일자') else '-',
-            '상장일자': soup.find('p', string='상장일자').find_next_sibling('strong').get_text(strip=True) if soup.find('p', string='상장일자') else '-'
+            '대표자': clean_text(soup.find('p', string='대표자').find_next_sibling('strong')),
+            '본사주소': clean_text(soup.find('p', string='본사주소').find_next_sibling('strong')),
+            '그룹명': clean_text(soup.find('p', string='그룹명').find_next_sibling('strong')),
+            '사업자번호': clean_text(soup.find('p', string='사업자번호').find_next_sibling('strong')),
+            '기업형태': clean_text(soup.find('p', string='기업형태').find_next_sibling('strong')),
+            '산업': clean_text(soup.find('p', string='산업').find_next_sibling('strong')),
+            '설립일자': clean_text(soup.find('p', string='설립일자').find_next_sibling('strong')),
+            '상장일자': clean_text(soup.find('p', string='상장일자').find_next_sibling('strong'))
         }
         
         revenue_row = soup.find('tr', class_='bdBck fwb')
@@ -93,41 +96,78 @@ def get_company_info(kiscode):
 def main():
     st.title("업체 정보 조회기")
 
-    uploaded_file = st.file_uploader("업로드할 엑셀 파일을 선택하세요.", type=["xlsx"])
-    
-    if uploaded_file is not None:
-        df = pd.read_excel(uploaded_file)
-        if '업체명' not in df.columns:
-            st.error("엑셀 파일에 '업체명' 열이 존재하지 않습니다.")
-            return
-        
-        results = []
-        for company_name in df['업체명']:
-            kiscode, nice_info_url = find_kiscode_from_naver_search(company_name)
-            if kiscode:
-                company_info, revenue_data = get_company_info(kiscode)
-                result = {
-                    '업체명': company_name,
-                    'kiscode': kiscode,
-                    '대표자': company_info.get('대표자', '-'),
-                    '본사주소': company_info.get('본사주소', '-'),
-                    '그룹명': company_info.get('그룹명', '-'),
-                    '사업자번호': company_info.get('사업자번호', '-'),
-                    '기업형태': company_info.get('기업형태', '-'),
-                    '산업': company_info.get('산업', '-'),
-                    '설립일자': company_info.get('설립일자', '-'),
-                    '상장일자': company_info.get('상장일자', '-'),
-                    '2023년 매출': revenue_data[0],
-                    '2022년 매출': revenue_data[1],
-                    '2021년 매출': revenue_data[2]
-                }
-                results.append(result)
+    # 사용자에게 입력 방식 선택지 제공
+    input_method = st.radio(
+        "업체명을 직접 입력하시겠습니까, 아니면 엑셀 파일을 업로드하시겠습니까?",
+        ('업체명 입력', '엑셀 파일 업로드')
+    )
+
+    if input_method == '업체명 입력':
+        # 업체명 입력
+        company_name = st.text_input("업체명을 입력하세요:")
+        if st.button("조회"):
+            if company_name:
+                kiscode, nice_info_url = find_kiscode_from_naver_search(company_name)
+                if kiscode:
+                    company_info, revenue_data = get_company_info(kiscode)
+                    result = {
+                        '업체명': company_name,
+                        'kiscode': kiscode,
+                        '대표자': company_info.get('대표자', '-'),
+                        '본사주소': company_info.get('본사주소', '-'),
+                        '그룹명': company_info.get('그룹명', '-'),
+                        '사업자번호': company_info.get('사업자번호', '-'),
+                        '기업형태': company_info.get('기업형태', '-'),
+                        '산업': company_info.get('산업', '-'),
+                        '설립일자': company_info.get('설립일자', '-'),
+                        '상장일자': company_info.get('상장일자', '-'),
+                        '2023년 매출': revenue_data[0],
+                        '2022년 매출': revenue_data[1],
+                        '2021년 매출': revenue_data[2]
+                    }
+                    st.write(pd.DataFrame([result]))
+                else:
+                    st.write(f"업체 '{company_name}'를 찾을 수 없습니다.")
             else:
-                st.write(f"업체 '{company_name}'를 찾을 수 없습니다.")
+                st.error("업체명을 입력하세요.")
+
+    elif input_method == '엑셀 파일 업로드':
+        # 엑셀 파일 업로드
+        uploaded_file = st.file_uploader("업로드할 엑셀 파일을 선택하세요.", type=["xlsx"])
         
-        if results:
-            results_df = pd.DataFrame(results)
-            st.write(results_df)
+        if uploaded_file is not None:
+            df = pd.read_excel(uploaded_file)
+            if '업체명' not in df.columns:
+                st.error("엑셀 파일에 '업체명' 열이 존재하지 않습니다.")
+                return
+            
+            results = []
+            for company_name in df['업체명']:
+                kiscode, nice_info_url = find_kiscode_from_naver_search(company_name)
+                if kiscode:
+                    company_info, revenue_data = get_company_info(kiscode)
+                    result = {
+                        '업체명': company_name,
+                        'kiscode': kiscode,
+                        '대표자': company_info.get('대표자', '-'),
+                        '본사주소': company_info.get('본사주소', '-'),
+                        '그룹명': company_info.get('그룹명', '-'),
+                        '사업자번호': company_info.get('사업자번호', '-'),
+                        '기업형태': company_info.get('기업형태', '-'),
+                        '산업': company_info.get('산업', '-'),
+                        '설립일자': company_info.get('설립일자', '-'),
+                        '상장일자': company_info.get('상장일자', '-'),
+                        '2023년 매출': revenue_data[0],
+                        '2022년 매출': revenue_data[1],
+                        '2021년 매출': revenue_data[2]
+                    }
+                    results.append(result)
+                else:
+                    st.write(f"업체 '{company_name}'를 찾을 수 없습니다.")
+            
+            if results:
+                results_df = pd.DataFrame(results)
+                st.write(results_df)
 
 if __name__ == "__main__":
     main()
