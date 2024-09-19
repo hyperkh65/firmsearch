@@ -45,7 +45,7 @@ def find_kiscode_from_naver_search(query):
                 return kiscode.group(1), more_info_link['href']
         return None, None
     except requests.RequestException as e:
-        print(f"Request failed: {e}")
+        st.error(f"Request failed: {e}")
         return None, None
 
 # 나이스 사이트에서 업체 정보를 가져오는 함수
@@ -86,7 +86,7 @@ def get_company_info(kiscode):
         
         return company_info, revenue_data
     except requests.RequestException as e:
-        print(f"Request failed: {e}")
+        st.error(f"Request failed: {e}")
         return {}, ['-'] * 3
 
 # 스트림릿 웹 앱 구성
